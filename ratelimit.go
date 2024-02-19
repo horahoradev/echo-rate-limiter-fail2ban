@@ -61,7 +61,9 @@ func Middleware(cfg *Config) echo.MiddlewareFunc {
 				return config.ErrorHandler(c, err)
 			}
 
-			if banned, err := isBanned(cfg.RedisConn, id, cfg.DenyThreshold); err != nil || banned {
+			if banned, err := isBanned(cfg.RedisConn, id, cfg.DenyThreshold); err != nil {
+				return c.String(http.StatusInternalServerError, err.Error())
+			} else if banned {
 				return c.String(http.StatusForbidden, "You are banned from the service.")
 			}
 
