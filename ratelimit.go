@@ -2,6 +2,7 @@ package ratelimit
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -62,7 +63,7 @@ func Middleware(cfg *Config) echo.MiddlewareFunc {
 			}
 
 			if banned, err := isBanned(cfg.RedisConn, id, cfg.DenyThreshold); err != nil {
-				return c.String(http.StatusInternalServerError, err.Error())
+				return middleware.RateLimiterWithConfig(config)(next)(c) // just let them in
 			} else if banned {
 				return c.String(http.StatusForbidden, "You are banned from the service.")
 			}
@@ -104,7 +105,9 @@ func incrDenies(conn redis.Conn, identity string, denyThreshold int, banDuration
 
 func isBanned(conn redis.Conn, identity string, banThreshold int) (bool, error) {
 	res, err := conn.Get(context.Background(), identityKey(identity)).Int()
-	if err != nil {
+	if errors.Is(err, redis.Nil) {
+		return false, nil
+	} else {
 		return false, err
 	}
 
